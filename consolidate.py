@@ -46,13 +46,12 @@ def consolidate_position(bases, quals, min_qual, min_freq):
     qual['A'] = qual['C'] = qual['G'] = qual['T'] = qual['N'] = 0
     for bb, qq in zip(bases, quals):
         # python 3 update. bb is an int here. explicitly converting to char
+        if type(bb) == int:
+          bb=chr(bb)
         if qq > min_qual:
-            #num[bb] += 1
-            num[chr(bb)] += 1
-        #if qq > qual[bb]:
-        if qq > qual[chr(bb)]:
-            #qual[bb] = qq
-            qual[chr(bb)] = qq
+            num[bb] += 1
+        if qq > qual[bb]:
+            qual[bb] = qq
     #most_common_base = max(num.iterkeys(), key=(lambda key: num[key]))
     # python 3 update. keys instead of iterkeys
     most_common_base = max(num.keys(), key=(lambda key: num[key]))
