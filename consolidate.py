@@ -96,7 +96,7 @@ def consolidate(fastq_file, consolidated_fastq_file, min_qual, min_freq):
 
 def main():
     if len(sys.argv) < 5:
-        print 'Usage: python consolidate.py fastq_file consolidated_fastq_file min_qual min_freq'
+        print( 'Usage: python consolidate.py fastq_file consolidated_fastq_file min_qual min_freq' )
         sys.exit()
 
     fastq_file = sys.argv[1]
