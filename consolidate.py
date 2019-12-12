@@ -45,11 +45,17 @@ def consolidate_position(bases, quals, min_qual, min_freq):
     num['A'] = num['C'] = num['G'] = num['T'] = num['N'] = 0
     qual['A'] = qual['C'] = qual['G'] = qual['T'] = qual['N'] = 0
     for bb, qq in zip(bases, quals):
+        # python 3 update. bb is an int here. explicitly converting to char
         if qq > min_qual:
-            num[bb] += 1
-        if qq > qual[bb]:
-            qual[bb] = qq
-    most_common_base = max(num.iterkeys(), key=(lambda key: num[key]))
+            #num[bb] += 1
+            num[chr(bb)] += 1
+        #if qq > qual[bb]:
+        if qq > qual[chr(bb)]:
+            #qual[bb] = qq
+            qual[chr(bb)] = qq
+    #most_common_base = max(num.iterkeys(), key=(lambda key: num[key]))
+    # python 3 update. keys instead of iterkeys
+    most_common_base = max(num.keys(), key=(lambda key: num[key]))
     freq = float(num[most_common_base]) / len(bases)
     if freq > min_freq:
         return True, most_common_base, qual[most_common_base]
@@ -78,10 +84,10 @@ def consolidate(fastq_file, consolidated_fastq_file, min_qual, min_freq):
         read_bases = zip(*[list(read.seq) for read in reads])
         read_quals = zip(*[list(read.qual) for read in reads])
         # Iterate position by position
-        consolidation_sucess, cons_seq, cons_qual = zip(*[consolidate_position(bases, quals, min_qual, min_freq) for bases, quals in zip(read_bases, read_quals)])
+        consolidation_success, cons_seq, cons_qual = zip(*[consolidate_position(bases, quals, min_qual, min_freq) for bases, quals in zip(read_bases, read_quals)])
         # Count consolidation successes and failures
-        num_successes += sum(consolidation_sucess)
-        num_bases += len(consolidation_sucess)
+        num_successes += sum(consolidation_success)
+        num_bases += len(consolidation_success)
         # Write consolidated FASTQ read
         outfile.write('@%s_%d %s\n' % (cur_molecular_id, len(reads), cur_sample_id)) # Header: Molecular id, number of reads, 2nd incoming header field (includes sample id)
         outfile.write(''.join(cons_seq) +'\n')
