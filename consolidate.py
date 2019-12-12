@@ -60,7 +60,7 @@ def consolidate_position(bases, quals, min_qual, min_freq):
 def consolidate(fastq_file, consolidated_fastq_file, min_qual, min_freq):
     logger.info("Consolidating reads in %s", fastq_file)
     outfolder = os.path.dirname(consolidated_fastq_file)
-    if not os.path.exists(outfolder):
+    if outfolder and not os.path.exists(outfolder):
         os.makedirs(outfolder)
 
     outfile = open(consolidated_fastq_file, 'w')
