@@ -25,3 +25,6 @@ demultiplex.py has been updated by SP to use a 3 column tab-delimited barcodes f
 
 SP has also added a hamming distance check when matching barcodes to samples and uses the `--max_hamming` parameter to more flexibly assign reads to samples.
 
+
+Many mods to make python2 and python3 compatible to all 3 scripts.
+
