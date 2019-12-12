@@ -204,6 +204,8 @@ def demultiplex(read1, read2, index1, index2, sample_barcodes, out_dir, min_read
             seq_counts.write("%s had %d reads \n" % (sample, reads))
             total_reads += reads
     seq_counts.write("Total Reads:%.0f" % int(total_reads))
+    #num_fastqs = len([v for k,v in count.iteritems() if v>=min_reads])
+    # python 3 update. use items() instead of iteritems()
     num_fastqs = len([v for k,v in count.iteritems() if v>=min_reads])
     logger.info('Wrote FASTQs for the %d sample barcodes out of %d with at least %d reads.', num_fastqs, len(count), min_reads)
 
