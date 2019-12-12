@@ -2,7 +2,7 @@ from __future__ import print_function
 import os
 import re
 import gzip
-import itertools
+#import itertools
 import argparse
 import time
 import logging
@@ -19,10 +19,11 @@ logger = logging.getLogger('root')
 #args['index2'] = os.path.join(base, 'Undetermined_S0_L001_I2_001.fastq.gz')
 
 def fq(file):
+    # python3 defaults to bytes, add t to open as text
     if re.search('.gz$', file):
-        fastq = gzip.open(file, 'rb')
+        fastq = gzip.open(file, 'rt')
     else:
-        fastq = open(file, 'r')
+        fastq = open(file, 'rt')
     with fastq as f:
         while True:
             l1 = f.readline()
@@ -38,7 +39,7 @@ def get_sample_id(i1, i2, sample_names, max_hamming):
     seq1 = i1[1]
     seq2 = i2[1]
 
-    #	Why originally 1:8? Seems that would ignore the first character?
+    # Why originally 1:8? Seems that would ignore the first character?
     #sample_barcode = seq1[1:8] + seq2[1:8]
     #if sample_barcode in sample_names:
     #    return sample_names[sample_barcode]
@@ -51,9 +52,9 @@ def get_sample_id(i1, i2, sample_names, max_hamming):
     for barcode in sample_names.keys():
         i5dist = 0
         i7dist = 0
-        #	Note ...
-        #	>>> range(8)
-        #	[0, 1, 2, 3, 4, 5, 6, 7]
+        # Note ...
+        # >>> range(8)
+        # [0, 1, 2, 3, 4, 5, 6, 7]
         for character in range(8):
             if barcode[character] != sample_barcode[character]:
                 i7dist +=1
@@ -63,7 +64,9 @@ def get_sample_id(i1, i2, sample_names, max_hamming):
             hamming_dist[barcode] = i5dist + i7dist
     if len(hamming_dist) != 0:
         m = min(hamming_dist.values())
-        if hamming_dist.values().count(m) == 1:
+        #if hamming_dist.values().count(m) == 1:
+        # python 3 update. values() returns a "view". convert to list first.
+        if list(hamming_dist.values()).count(m) == 1:
             min_barcode = [barcode for barcode, distance in hamming_dist.items() if hamming_dist[barcode] == m]
             return sample_names[min_barcode[0]]
         else:
@@ -101,14 +104,18 @@ def demultiplex(read1, read2, index1, index2, sample_barcodes, out_dir, min_read
     #it = itertools.izip(fq(args['read1']), fq(args['read2']), fq(args['index1']), fq(args['index2']))
     #for r1,r2,i1,i2 in itertools.islice(it, 0, 100):
     start = time.time()
-    for r1,r2,i1,i2 in itertools.izip(fq(read1), fq(read2), fq(index1), fq(index2)):
+    #for r1,r2,i1,i2 in itertools.izip(fq(read1), fq(read2), fq(index1), fq(index2)):
+    # python 3 update. Use zip instead of itertools.izip
+    for r1,r2,i1,i2 in zip(fq(read1), fq(read2), fq(index1), fq(index2)):
         total_count += 1
         if total_count % 1000000 == 0:
             logger.info("Processed %d reads in %.1f minutes.", total_count, (time.time()-start)/60)
         sample_id = get_sample_id(i1, i2, sample_names, max_hamming)
 
         # Increment read count and create output buffers if this is a new sample barcode
-        if not count.has_key(sample_id):
+        #if not count.has_key(sample_id):
+        # python 3 update. Use key in dict, rather than dict.has_key(key)
+        if not sample_id in count:
             count[sample_id] = 0
             buffer_r1[sample_id] = []
             buffer_r2[sample_id] = []
