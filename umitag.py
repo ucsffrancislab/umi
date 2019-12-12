@@ -89,7 +89,10 @@ def main():
     args = vars(parser.parse_args())
     out_dir = args['out_dir']
 
-    umitag(read1_in, read2_in, index1, index2, read1_out, read2_out, out_dir)
+		#	Not sure how this ever worked? These global variables don't exist. They are part of a hash/dict.
+    #umitag(read1_in, read2_in, index1, index2, read1_out, read2_out, out_dir)
+    umitag(args['read1_in'], args['read2_in'], args['index1'], args['index2'], args['read1_out'], args['read2_out'], args['out_dir'])
+
 
 if __name__ == '__main__':
     main()
