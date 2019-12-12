@@ -2,11 +2,14 @@ from __future__ import print_function
 import os
 import re
 import gzip
-import itertools
+#import itertools
 import argparse
 import time
+import logging
 
 __author__ = 'Martin Aryee'
+
+logger = logging.getLogger('root')
 
 #args = {'out_dir':'/PHShome/ma695/tmp', 'min_reads':10}
 #base = '/data/joung/sequencing_bcl/131007_M01326_0075_000000000-A6B33/Data/Intensities/BaseCalls'
@@ -16,10 +19,11 @@ __author__ = 'Martin Aryee'
 #args['index2'] = os.path.join(base, 'Undetermined_S0_L001_I2_001.fastq.gz')
 
 def fq(file):
+    # python3 defaults to bytes, add t to open as text
     if re.search('.gz$', file):
-        fastq = gzip.open(file, 'rb')
+        fastq = gzip.open(file, 'rt')
     else:
-        fastq = open(file, 'r')
+        fastq = open(file, 'rt')
     with fastq as f:
         while True:
             l1 = f.readline()
@@ -31,17 +35,46 @@ def fq(file):
             yield [l1, l2, l3, l4]
 
 
-def get_sample_id(i1, i2, sample_names):
+def get_sample_id(i1, i2, sample_names, max_hamming):
     seq1 = i1[1]
     seq2 = i2[1]
-    sample_barcode = seq1[1:8] + seq2[1:8]
-    if sample_barcode in sample_names:
-        return sample_names[sample_barcode]
+
+    # Why originally 1:8? Seems that would ignore the first character?
+    #sample_barcode = seq1[1:8] + seq2[1:8]
+    #if sample_barcode in sample_names:
+    #    return sample_names[sample_barcode]
+    #else:
+    #    return sample_barcode
+
+    sample_barcode = seq1[0:8] + seq2[0:8]
+
+    hamming_dist = {}
+    for barcode in sample_names.keys():
+        i5dist = 0
+        i7dist = 0
+        # Note ...
+        # >>> range(8)
+        # [0, 1, 2, 3, 4, 5, 6, 7]
+        for character in range(8):
+            if barcode[character] != sample_barcode[character]:
+                i7dist +=1
+            if barcode[character + 7] != sample_barcode[character + 7]:
+                i5dist +=1
+        if i5dist <= max_hamming and i7dist <= max_hamming:
+            hamming_dist[barcode] = i5dist + i7dist
+    if len(hamming_dist) != 0:
+        m = min(hamming_dist.values())
+        #if hamming_dist.values().count(m) == 1:
+        # python 3 update. values() returns a "view". convert to list first.
+        if list(hamming_dist.values()).count(m) == 1:
+            min_barcode = [barcode for barcode, distance in hamming_dist.items() if hamming_dist[barcode] == m]
+            return sample_names[min_barcode[0]]
+        else:
+            return 'multiplematches'
     else:
-        return sample_barcode
+        return 'hdist_toofar'
 
-
-def demultiplex(read1, read2, index1, index2, sample_barcodes, out_dir, min_reads=10000):
+def demultiplex(read1, read2, index1, index2, sample_barcodes, out_dir, min_reads, max_hamming):
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
 
@@ -50,9 +83,9 @@ def demultiplex(read1, read2, index1, index2, sample_barcodes, out_dir, min_read
         if not sample_barcodes==None:
             for line in open(sample_barcodes, 'r'):
                 fields = line.strip().split('\t')
-                if len(fields)==2:
-                    sampleid, barcode = fields
-                    sample_names[barcode] = sampleid
+                if len(fields)==3:
+                    sampleid, i7barcode, i5barcode = fields
+                    sample_names[i7barcode + i5barcode] = sampleid
     else:
         sample_names = sample_barcodes
 
@@ -71,14 +104,18 @@ def demultiplex(read1, read2, index1, index2, sample_barcodes, out_dir, min_read
     #it = itertools.izip(fq(args['read1']), fq(args['read2']), fq(args['index1']), fq(args['index2']))
     #for r1,r2,i1,i2 in itertools.islice(it, 0, 100):
     start = time.time()
-    for r1,r2,i1,i2 in itertools.izip(fq(read1), fq(read2), fq(index1), fq(index2)):
+    #for r1,r2,i1,i2 in itertools.izip(fq(read1), fq(read2), fq(index1), fq(index2)):
+    # python 3 update. Use zip instead of itertools.izip
+    for r1,r2,i1,i2 in zip(fq(read1), fq(read2), fq(index1), fq(index2)):
         total_count += 1
         if total_count % 1000000 == 0:
-            print ("Processed %d reads in %.1f minutes." % (total_count, (time.time()-start)/60))
-        sample_id = get_sample_id(i1, i2, sample_names)
+            logger.info("Processed %d reads in %.1f minutes.", total_count, (time.time()-start)/60)
+        sample_id = get_sample_id(i1, i2, sample_names, max_hamming)
 
         # Increment read count and create output buffers if this is a new sample barcode
-        if not count.has_key(sample_id):
+        #if not count.has_key(sample_id):
+        # python 3 update. Use key in dict, rather than dict.has_key(key)
+        if not sample_id in count:
             count[sample_id] = 0
             buffer_r1[sample_id] = []
             buffer_r2[sample_id] = []
@@ -138,6 +175,17 @@ def demultiplex(read1, read2, index1, index2, sample_barcodes, out_dir, min_read
         for record in buffer_i2[sample_id]:
             undetermined_i2.write(''.join(record))
 
+    seq_counts = open(os.path.join(out_dir, 'seqcounts.txt'), 'w')
+    samples = []
+    strings = []
+    for sample in count.keys():
+        if sample.isdigit():
+            samples.append(int(sample))
+        else:
+            strings.append(sample)
+    samples.sort()
+    samples.extend(strings)
+    samples.append('undetermined')
     # Close files
     for sample_id in outfiles_r1:
         outfiles_r1[sample_id].close()
@@ -149,8 +197,17 @@ def demultiplex(read1, read2, index1, index2, sample_barcodes, out_dir, min_read
     undetermined_i1.close()
     undetermined_i2.close()
 
-    num_fastqs = len([v for k,v in count.iteritems() if v>=min_reads])
-    print('Wrote FASTQs for the %d sample barcodes out of %d with at least %d reads.' % (num_fastqs, len(count), min_reads))
+    total_reads = 0
+    for sample in samples:
+        if os.path.exists("%s.r1.fastq" % str(sample)):
+            reads = len(open("%s.r1.fastq" % str(sample)).readlines(  ))/4
+            seq_counts.write("%s had %d reads \n" % (sample, reads))
+            total_reads += reads
+    seq_counts.write("Total Reads:%.0f" % int(total_reads))
+    #num_fastqs = len([v for k,v in count.iteritems() if v>=min_reads])
+    # python 3 update. use items() instead of iteritems()
+    num_fastqs = len([v for k,v in count.items() if v>=min_reads])
+    logger.info('Wrote FASTQs for the %d sample barcodes out of %d with at least %d reads.', num_fastqs, len(count), min_reads)
 
 def main():
     parser = argparse.ArgumentParser()
@@ -159,11 +216,12 @@ def main():
     parser.add_argument('--index1', required=True)
     parser.add_argument('--index2', required=True)
     parser.add_argument('--min_reads', type=int, default=10000)
+    parser.add_argument('--max_hamming', type=int, default=0)
     parser.add_argument('--sample_barcodes')
     parser.add_argument('--out_dir', default='.')
     args = vars(parser.parse_args())
 
-    demultiplex(args['read1'], args['read2'], args['index1'], args['index2'], args['sample_barcodes'], args['out_dir'], min_reads=args['min_reads'])
+    demultiplex(args['read1'], args['read2'], args['index1'], args['index2'], args['sample_barcodes'], args['out_dir'], min_reads=args['min_reads'], max_hamming=args['max_hamming'])
 
 if __name__ == '__main__':
     main()
