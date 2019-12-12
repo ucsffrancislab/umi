@@ -2,7 +2,7 @@
 import os
 import re
 import gzip
-import itertools
+#import itertools
 import argparse
 import subprocess
 
@@ -21,9 +21,9 @@ __author__ = 'Martin Aryee'
 
 def fq(file):
     if re.search('.gz$', file):
-        fastq = gzip.open(file, 'rb')
+        fastq = gzip.open(file, 'rt')
     else:
-        fastq = open(file, 'r')
+        fastq = open(file, 'rt')
     with fastq as f:
         while True:
             l1 = f.readline()
@@ -53,7 +53,9 @@ def umitag(read1, read2, index1, index2, read1_out, read2_out, out_dir):
     r2_umitagged = open(r2_umitagged_unsorted_file, 'w')
     #it = itertools.izip(fq(args['read1_in']), fq(args['read2_in']), fq(args['index1']), fq(args['index2']))
     #for r1,r2,i1,i2 in itertools.islice(it, 0, 100):
-    for r1,r2,i1,i2 in itertools.izip(fq(read1), fq(read2), fq(index1), fq(index2)):
+    #for r1,r2,i1,i2 in itertools.izip(fq(read1), fq(read2), fq(index1), fq(index2)):
+    # python 3 update. use zip instead of itertools.izip
+    for r1,r2,i1,i2 in zip(fq(read1), fq(read2), fq(index1), fq(index2)):
         # Create molecular ID by concatenating molecular barcode and beginning of r1 read sequence
         molecular_id = get_umi(r1, r2, i1, i2)
         # Add molecular id to read headers
