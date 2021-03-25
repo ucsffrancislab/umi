@@ -65,7 +65,7 @@ def consolidate_position(bases, quals, min_qual, min_freq):
     for bb, qq in zip(bases, quals):
         # python 3 update. bb is an int here. explicitly converting to char
         if type(bb) == int:
-          bb=chr(bb)
+            bb=chr(bb)
         if qq > min_qual:
             num[bb] += 1
         if qq > qual[bb]:
